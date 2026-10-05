@@ -1,0 +1,6 @@
+{
+  "name": "secret-mask",
+  "version": "0.1.0",
+  "description": "Masks secrets (API keys, tokens, passwords, private keys) in the transcript; hover a masked value to reveal it.",
+  "author": { "name": "Fazzani" }
+}

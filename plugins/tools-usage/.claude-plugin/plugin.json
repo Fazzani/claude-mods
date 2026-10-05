@@ -1,0 +1,7 @@
+{
+  "name": "tools-usage",
+  "version": "0.1.0",
+  "description": "Side pane listing the tools used in the session (built-in, MCP, skill, agent, plugin, hook) with calls and token consumption.",
+  "author": { "name": "Fazzani" },
+  "types": "./types/index.d.ts"
+}

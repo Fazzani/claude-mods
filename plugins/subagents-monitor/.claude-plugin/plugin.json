@@ -1,0 +1,7 @@
+{
+  "name": "subagents-monitor",
+  "version": "0.1.0",
+  "description": "Live side pane listing the session's subagents: status, elapsed and working time, model, effort and estimated cost.",
+  "author": { "name": "Fazzani" },
+  "types": "./types/index.d.ts"
+}
