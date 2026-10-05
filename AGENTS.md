@@ -14,23 +14,29 @@ Run plugin commands from the plugin folder (`cd plugins/<name>`). The others run
 
 | Task | Command | ~Time |
 |------|---------|-------|
-| Validate marketplace | `claude plugin validate .` | 3s |
-| Validate one plugin | `claude plugin validate plugins/<name>` | 3s |
+| Validate marketplace | `claude plugin validate . --strict` | 3s |
+| Check versions, marketplace entries, changelogs | `node .github/scripts/check-versions.mjs origin/main` | 1s |
+| Plugins changed since a ref (CI matrix) | `node .github/scripts/changed-plugins.mjs origin/main` | 1s |
+| Preview releases | `node .github/scripts/release.mjs --dry-run` | 1s |
+| Validate one plugin | `claude plugin validate plugins/<name> --strict` | 3s |
 | Typecheck one plugin | `tsc -p .` | 5s |
 | Test one plugin | `claude plugin test .` | 2s |
 | Run a plugin from disk (hot reload) | `claude --plugin-dir plugins/<name>` | – |
 | Refresh installed copy after push | `claude plugin marketplace update claude-mods` | 5s |
 | Install a plugin | `claude plugin install <name>@claude-mods` | 5s |
 
-`tsc` needs `plugins/<name>/.claude/types/claude-code.d.ts`, which is git-ignored. To generate it, run `/plugin-types plugins/<name>/.claude/types` in a Claude Code session, or copy it from another plugin. Regenerate it after every Claude Code update. Don't edit it by hand.
+`tsc` reads the plugin API from `types/claude-code.d.ts` at the root, shared by every plugin's `tsconfig.json`. Its first line names the Claude Code version that wrote it, and CI installs exactly that version. To update it, run `/plugin-types types` in a Claude Code session at the repo root and commit **only** `types/claude-code.d.ts` (the other files it writes are git-ignored because they describe your machine). Don't edit it by hand.
 
 ## Workflow
 
 1. **Before coding**, read the plugin's `README.md` and the golden sample for the surface you're touching.
-2. **After each change**, run `tsc -p .`, then `claude plugin validate .`, then `claude plugin test .` in that plugin.
-3. **Before committing**, every plugin you touched must pass all three, and `claude plugin validate .` must pass at the root.
+2. **After each change**, run `tsc -p .`, then `claude plugin validate . --strict`, then `claude plugin test .` in that plugin.
+3. **Before committing**, every plugin you touched must pass all three, and at the root both `claude plugin validate . --strict` and `node .github/scripts/check-versions.mjs origin/main` must pass.
 4. **Before claiming done**, paste the command output as evidence.
-5. **Release**: bump `version` in **both** `plugins/<name>/.claude-plugin/plugin.json` and that plugin's entry in `.claude-plugin/marketplace.json`, using semver. Push to `main`.
+5. **Release** (a plugin's shipped files changed: anything except `tests/`, `README.md`, `CHANGELOG.md` and `tsconfig.json`):
+   1. Bump `version` with semver in **both** `plugins/<name>/.claude-plugin/plugin.json` and the plugin's entry in `.claude-plugin/marketplace.json`.
+   2. Add a `## [<version>] - YYYY-MM-DD` section at the top of `plugins/<name>/CHANGELOG.md` (Keep a Changelog: `### Added`, `### Changed`, `### Fixed`, `### Removed`).
+   3. Push to `main`. Once CI passes, the Release workflow tags `<name>-v<version>` and publishes a GitHub release with that changelog section. Never create these tags by hand.
 
 ## File Map
 
@@ -46,8 +52,13 @@ plugins/<name>/
   locales/fr.ts                     `export const fr: Messages = {…}`
   types/index.d.ts                  $.state contract (only if the plugin keeps state)
   tests/*.test.ts(x)                claude plugin test suites
-  tsconfig.json                     include: .claude/types, types, hooks, tests, locales
+  tsconfig.json                     include: ../../types/claude-code.d.ts, types, hooks, tests, locales
+  CHANGELOG.md                      per-plugin history; one section per released version
   README.md                         user-facing doc
+types/claude-code.d.ts              plugin API declarations (committed, shared, pins the CI Claude Code version)
+.github/workflows/ci.yml            changes → matrix of changed plugins (validate, tsc, test) + marketplace/versions job + `CI OK` gate
+.github/workflows/release.yml       after CI on main: tag + release each new plugin version
+.github/scripts/*.mjs               Node helpers the workflows run (no dependencies)
 LICENSE                             MIT
 ```
 
@@ -62,7 +73,7 @@ LICENSE                             MIT
 | UI tests on two surfaces | `plugins/secret-mask/tests/render.test.tsx` | `for (const surface of ['terminal', 'desktop'] as const)` + `$.ui.mount` + `find({ key })` |
 | i18n | `plugins/tools-usage/locales/`, `hooks/i18n.ts`, `tests/i18n.test.ts` | typed catalogs, `pickLocale`, key-parity test |
 
-API reference: `plugins/<name>/.claude/types/claude-code.d.ts` (grep the event or noun name). It is the only authority, because the API is early access and changes between releases.
+API reference: `types/claude-code.d.ts` (grep the event or noun name). It is the only authority, because the API is early access and changes between releases.
 
 ## Hooks-module rules (the engine refuses to load modules that break them)
 
@@ -94,7 +105,9 @@ API reference: `plugins/<name>/.claude/types/claude-code.d.ts` (grep the event o
 
 | When | Do |
 |------|-----|
-| Adding a plugin | Copy the closest golden sample's layout, add `userConfig.language`, `locales/`, `hooks/i18n.ts` and `tests/`, register it in `marketplace.json` and the root `README.md` table |
+| Adding a plugin | Copy the closest golden sample's layout, add `userConfig.language`, `locales/`, `hooks/i18n.ts`, `tests/` and a `CHANGELOG.md` with its first version, register it in `marketplace.json` and the root `README.md` table. CI picks it up automatically |
+| CI says "changed but the version is still X" | Do the release steps above, or move the change into an unshipped file if it really ships nothing |
+| Changing `.github/`, `types/` or `.claude-plugin/` | CI then checks every plugin, not only the changed ones |
 | Adding a pane | `$.ui.open({ id, title: t().title, columns })` in `session.start` and in a `/command`. Size the tree to `e.props.bodyColumns` |
 | Hooking a transcript component | Return `next(e)` fast when there's nothing to change. Prefer `next({ ...e, props })` over a full redraw |
 | Wrapping `tool.call` / `turn.step` | Use `try/finally` so counters settle on errors and aborts |
@@ -104,8 +117,8 @@ API reference: `plugins/<name>/.claude/types/claude-code.d.ts` (grep the event o
 
 ## Boundaries
 
-**Always:** run validate, tsc and test for each touched plugin. Bump both version fields together. Follow the i18n rules. Write commits as an imperative summary, end them with a `Co-Authored-By` trailer when an agent wrote them, and push to `main`.
+**Always:** run validate, tsc and test for each touched plugin. Bump both version fields together and add the CHANGELOG section in the same commit. Follow the i18n rules. Write commits as an imperative summary, end them with a `Co-Authored-By` trailer when an agent wrote them, and push to `main`.
 
-**Ask first:** renaming a plugin or a slash command (it breaks installs), changing the marketplace `name`, changing a `$.state` key shape, removing a locale.
+**Ask first:** renaming a plugin or a slash command (it breaks installs and its tag series), changing the marketplace `name`, changing a `$.state` key shape, removing a locale.
 
-**Never:** commit `.claude/types/`, force-push `main`, hard-code user-facing strings, store secrets or real tokens in tests (use obvious fakes like `AKIAIOSFODNN7EXAMPLE`), make `secret-mask` send detected values anywhere.
+**Never:** commit `.claude/types/` or the machine-specific files `/plugin-types` writes next to `types/claude-code.d.ts`, create or move `<plugin>-v*` tags by hand, rewrite a released CHANGELOG section, force-push `main`, hard-code user-facing strings, store secrets or real tokens in tests (use obvious fakes like `AKIAIOSFODNN7EXAMPLE`), make `secret-mask` send detected values anywhere.

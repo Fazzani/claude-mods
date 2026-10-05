@@ -1,5 +1,7 @@
 # claude-mods
 
+[![CI](https://github.com/Fazzani/claude-mods/actions/workflows/ci.yml/badge.svg)](https://github.com/Fazzani/claude-mods/actions/workflows/ci.yml)
+
 A Claude Code plugin marketplace of **mods**: live panes, bands and status lines built on Claude Code function hooks.
 
 ## Install
@@ -45,7 +47,7 @@ claude --plugin-dir ./plugins/subagents-monitor
 This loads the plugin from disk and hot-reloads it on save. Before committing, check it with:
 
 ```bash
-claude plugin validate ./plugins/subagents-monitor
+claude plugin validate ./plugins/subagents-monitor --strict
 ```
 
 To type-check it and run its tests:
@@ -54,11 +56,15 @@ To type-check it and run its tests:
 cd plugins/tools-usage && tsc -p . && claude plugin test .
 ```
 
-Run `/plugin-types` in a Claude session to (re)generate `.claude/types`.
+The plugin API types live in `types/claude-code.d.ts`. To update them, run `/plugin-types types` in a Claude session at the repo root. CI runs the same checks on every plugin a change touches.
 
 ## Language
 
 Every plugin's UI is available in English and French. Set it per plugin through the `language` option in `/config`. The default, `auto`, follows Claude Code's `language` setting and then `LC_ALL`, `LC_MESSAGES` or `LANG`.
+
+## Versions
+
+Each plugin has its own version, its own `CHANGELOG.md` and its own release tags (`<plugin>-v<version>`), because plugins install separately. See [Releases](https://github.com/Fazzani/claude-mods/releases).
 
 ## Contributing
 

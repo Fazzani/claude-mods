@@ -6,5 +6,5 @@
     "noEmit": true, "skipLibCheck": true,
     "jsx": "react", "jsxFactory": "h", "jsxFragmentFactory": "Fragment"
   },
-  "include": [".claude/types", "hooks", "tests", "locales"]
+  "include": ["../../types/claude-code.d.ts", "hooks", "tests", "locales"]
 }

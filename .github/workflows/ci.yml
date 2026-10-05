@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changed plugins
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.changed.outputs.plugins }}
+      any: ${{ steps.changed.outputs.any }}
+      base: ${{ steps.base.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Pick the base commit
+        id: base
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          case "$EVENT" in
+            pull_request) echo "sha=$PR_BASE" >> "$GITHUB_OUTPUT" ;;
+            push) echo "sha=$PUSH_BEFORE" >> "$GITHUB_OUTPUT" ;;
+            *) echo "sha=" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: List changed plugins
+        id: changed
+        run: node .github/scripts/changed-plugins.mjs "${{ steps.base.outputs.sha }}"
+
+  marketplace:
+    name: Marketplace and versions
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install Claude Code at the version the API types were written by
+        run: npm install --global "@anthropic-ai/claude-code@$(sed -n 's#^// Written by Claude Code \([0-9.]*\)\.$#\1#p' types/claude-code.d.ts)"
+      - name: Validate the marketplace manifest
+        run: claude plugin validate . --strict
+      - name: Check versions, marketplace entries and changelogs
+        run: node .github/scripts/check-versions.mjs "${{ needs.changes.outputs.base }}"
+
+  plugin:
+    name: ${{ matrix.plugin }}
+    needs: changes
+    if: needs.changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.changes.outputs.plugins) }}
+    defaults:
+      run:
+        working-directory: plugins/${{ matrix.plugin }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install Claude Code and TypeScript
+        working-directory: .
+        run: |
+          npm install --global typescript@5 \
+            "@anthropic-ai/claude-code@$(sed -n 's#^// Written by Claude Code \([0-9.]*\)\.$#\1#p' types/claude-code.d.ts)"
+      - name: Validate
+        run: claude plugin validate . --strict
+      - name: Typecheck
+        run: tsc -p .
+      - name: Test
+        run: claude plugin test .
+
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [changes, marketplace, plugin]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a required job failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - run: echo "All checks passed."

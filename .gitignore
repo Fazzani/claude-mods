@@ -1,3 +1,7 @@
 node_modules/
 **/.claude/types/
+# /plugin-types also writes these: they describe this machine's plugins and MCP servers
+types/claude-code-plugins.d.ts
+types/claude-code-plugins/
+types/claude-code-mcp.d.ts
 *.log

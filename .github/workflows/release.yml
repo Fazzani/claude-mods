@@ -1,0 +1,35 @@
+name: Release
+
+# After CI passes on main, tag and release every plugin whose version has no tag yet
+# (<plugin>-v<version>), with its CHANGELOG section as the release notes.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Release new plugin versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/release.mjs
