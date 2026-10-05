@@ -5,40 +5,42 @@
   },
   "metadata": {
     "description": "Mods for Claude Code: live panes, bands and status lines built on function hooks.",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "plugins": [
     {
       "name": "subagents-monitor",
       "source": "./plugins/subagents-monitor",
       "description": "Live side pane listing the session's subagents: status, elapsed and working time, model, effort and estimated cost.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "productivity",
       "keywords": [
         "subagents",
         "monitor",
         "pane",
         "cost"
-      ]
+      ],
+      "license": "MIT"
     },
     {
       "name": "secret-mask",
       "source": "./plugins/secret-mask",
       "description": "Masks secrets (API keys, tokens, passwords, private keys) in the transcript; hover a masked value to reveal it.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "security",
       "keywords": [
         "secrets",
         "mask",
         "redact",
         "security"
-      ]
+      ],
+      "license": "MIT"
     },
     {
       "name": "tools-usage",
       "source": "./plugins/tools-usage",
       "description": "Side pane listing the tools used in the session (built-in, MCP, skill, agent, plugin, hook) with calls and token consumption.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "productivity",
       "keywords": [
         "tools",
@@ -46,7 +48,8 @@
         "skills",
         "tokens",
         "usage"
-      ]
+      ],
+      "license": "MIT"
     }
   ]
 }

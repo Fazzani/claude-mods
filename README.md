@@ -55,3 +55,15 @@ cd plugins/tools-usage && tsc -p . && claude plugin test .
 ```
 
 Run `/plugin-types` in a Claude session to (re)generate `.claude/types`.
+
+## Language
+
+Every plugin's UI is available in English and French. Set it per plugin through the `language` option in `/config`. The default, `auto`, follows Claude Code's `language` setting and then `LC_ALL`, `LC_MESSAGES` or `LANG`.
+
+## Contributing
+
+See [AGENTS.md](AGENTS.md) for the conventions: layout, checks, i18n and releases.
+
+## License
+
+[MIT](LICENSE)

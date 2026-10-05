@@ -1,5 +1,7 @@
 import type { EngineInterface, Register, RenderNode } from 'claude-code'
 
+import { LOCALES, pickLocale } from './i18n'
+import type { Locale, Messages } from './i18n'
 import { hasSecretDeep, maskDeep, segmentLines } from './patterns'
 import type { Segment } from './patterns'
 
@@ -38,7 +40,12 @@ function Line(ui: Elements, segments: Segment[], row: number, color?: string): R
   )
 }
 
-function Lines(ui: Elements, text: string, options: { color?: string; limit?: number; offset?: number } = {}) {
+function Lines(
+  ui: Elements,
+  m: Messages,
+  text: string,
+  options: { color?: string; limit?: number; offset?: number } = {},
+) {
   const { Box, Text } = ui
   const lines = segmentLines(text)
   const shown = options.limit === undefined ? lines : lines.slice(0, options.limit)
@@ -47,7 +54,7 @@ function Lines(ui: Elements, text: string, options: { color?: string; limit?: nu
   return (
     <Box flexDirection="column">
       {shown.map((segments, row) => Line(ui, segments, (options.offset ?? 0) + row, options.color))}
-      {hidden > 0 && <Text dimColor>… +{hidden} lines (ctrl+o to expand)</Text>}
+      {hidden > 0 && <Text dimColor>{m.moreLines(hidden)}</Text>}
     </Box>
   )
 }
@@ -73,7 +80,28 @@ function printedOf(output: unknown): { stdout: string; stderr: string } | null {
   return null
 }
 
-export const register: Register = on => {
+/** The plugin's option, Claude Code's `language` setting, then the process locale. */
+async function resolveLocale($: EngineInterface, option: unknown): Promise<Locale> {
+  const settings = await $.settings.read()
+
+  return pickLocale(
+    option,
+    settings.language,
+    await $.env.get('LC_ALL'),
+    await $.env.get('LC_MESSAGES'),
+    await $.env.get('LANG'),
+  )
+}
+
+export const register: Register = (on, options) => {
+  let m: Messages = LOCALES.en
+
+  on('session.start', async ($, e, next) => {
+    m = LOCALES[await resolveLocale($, options.language)]
+
+    return next(e)
+  })
+
   on('ui.render', { component: 'AssistantMessage' }, ($, e, next) => {
     if (!hasSecretText(e.props.text)) {
       return next(e)
@@ -85,7 +113,7 @@ export const register: Register = on => {
       <Box flexDirection="row">
         <Text>{e.props.isFirstOfReply ? '● ' : '  '}</Text>
         <Box flexDirection="column" flexShrink={1}>
-          {Lines(ui, e.props.text)}
+          {Lines(ui, m, e.props.text)}
         </Box>
       </Box>
     )
@@ -105,7 +133,7 @@ export const register: Register = on => {
       <Box flexDirection="row">
         <Text dimColor>{'> '}</Text>
         <Box flexDirection="column" flexShrink={1}>
-          {Lines(ui, e.props.text)}
+          {Lines(ui, m, e.props.text)}
         </Box>
       </Box>
     )
@@ -140,8 +168,8 @@ export const register: Register = on => {
       <Box flexDirection="row">
         <Text dimColor>{'  ⎿  '}</Text>
         <Box flexDirection="column" flexShrink={1}>
-          {outLines && Lines(ui, outLines, { limit: OUTPUT_LINES })}
-          {errLines && Lines(ui, errLines, { color: '#F85149', limit: OUTPUT_LINES, offset: 10_000 })}
+          {outLines && Lines(ui, m, outLines, { limit: OUTPUT_LINES })}
+          {errLines && Lines(ui, m, errLines, { color: '#F85149', limit: OUTPUT_LINES, offset: 10_000 })}
         </Box>
       </Box>
     )

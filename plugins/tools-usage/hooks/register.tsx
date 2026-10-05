@@ -2,9 +2,10 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { ToolKind, ToolStat, ToolsSort } from '../types'
+import { LOCALES, pickLocale } from './i18n'
+import type { Locale } from './i18n'
 
 const PANE = 'tools-usage'
-const TITLE = 'Tools'
 const PANE_COLUMNS = 58
 
 const tools = atom({ plugin: 'tools-usage', key: 'tools' } as const, [])
@@ -111,17 +112,33 @@ function sorted(list: ToolStat[], by: ToolsSort): ToolStat[] {
   )
 }
 
-export const register: Register = on => {
+/** The plugin's option, Claude Code's `language` setting, then the process locale. */
+async function resolveLocale($: EngineInterface, option: unknown): Promise<Locale> {
+  const settings = await $.settings.read()
+
+  return pickLocale(
+    option,
+    settings.language,
+    await $.env.get('LC_ALL'),
+    await $.env.get('LC_MESSAGES'),
+    await $.env.get('LANG'),
+  )
+}
+
+export const register: Register = (on, options) => {
+  let locale: Locale = 'en'
+  const t = () => LOCALES[locale]
   /** Who provides each tool (`engine` for built-ins and MCP servers), from its description. */
   const providers: Record<string, string> = {}
   const definitions: Record<string, number> = {}
 
   on('session.start', async ($, e, next) => {
+    locale = await resolveLocale($, options.language)
     await $.command.register({
       name: 'tools-usage',
-      description: 'Show the tools pane (`/tools-usage reset` clears the counts)',
+      description: t().commandDescription,
     })
-    void $.ui.open({ id: PANE, title: TITLE, columns: PANE_COLUMNS })
+    void $.ui.open({ id: PANE, title: t().title, columns: PANE_COLUMNS })
 
     return next(e)
   })
@@ -130,11 +147,11 @@ export const register: Register = on => {
     if (e.args.trim() === 'reset') {
       await update($, tools, () => [])
 
-      return { text: 'Tool counts cleared.' }
+      return { text: t().cleared }
     }
-    await $.ui.open({ id: PANE, title: TITLE, columns: PANE_COLUMNS })
+    await $.ui.open({ id: PANE, title: t().title, columns: PANE_COLUMNS })
 
-    return { text: 'Tools pane opened.' }
+    return { text: t().opened }
   })
 
   on('tool.describe', async ($, e, next) => {
@@ -209,6 +226,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
+    const m = t()
     const list = (await read($, tools)) ?? []
     const by = await read($, sort)
     const width = Math.max(30, e.props.bodyColumns)
@@ -243,13 +261,13 @@ export const register: Register = on => {
       <Box flexDirection="column" width={width}>
         <Box flexDirection="row" justifyContent="space-between">
           <Text bold color={ACCENT}>
-            ◆ Tools
+            {m.heading}
           </Text>
           <Text>
             <Text bold>{calls}</Text>
-            <Text dimColor> calls · </Text>
+            <Text dimColor> {m.calls} · </Text>
             <Text bold>≈{compact(grand)}</Text>
-            <Text dimColor> tok</Text>
+            <Text dimColor> {m.tokens}</Text>
           </Text>
         </Box>
 
@@ -271,11 +289,11 @@ export const register: Register = on => {
         </Box>
 
         <Box flexDirection="row" gap={1} marginTop={1}>
-          <Text dimColor>Sort</Text>
+          <Text dimColor>{m.sort}</Text>
           {(['tokens', 'calls', 'name'] as const).map(option => (
             <Button
               key={`sort-${option}`}
-              label={option}
+              label={m.sortBy[option]}
               plain
               dimColor={option !== by}
               onPress={() => update($, sort, () => option)}
@@ -284,7 +302,7 @@ export const register: Register = on => {
         </Box>
         <Text dimColor>{'─'.repeat(width)}</Text>
 
-        {rows.length === 0 && <Text dimColor>No tool calls yet.</Text>}
+        {rows.length === 0 && <Text dimColor>{m.empty}</Text>}
 
         {rows.map(stat => {
           const color = COLORS[stat.kind]
@@ -327,11 +345,11 @@ export const register: Register = on => {
         })}
 
         <Text dimColor>{'─'.repeat(width)}</Text>
-        <Text dimColor>↑ args written · ↓ results read · ⌂ schema per request</Text>
+        <Text dimColor>{m.legend}</Text>
         {definitionsTotal > 0 && (
-          <Text dimColor>Tool schemas ≈{compact(definitionsTotal)} tok sent with every request</Text>
+          <Text dimColor>{m.schemas(compact(definitionsTotal))}</Text>
         )}
-        <Text dimColor>Estimates (~4 chars/token) · /tools-usage reset</Text>
+        <Text dimColor>{m.footer}</Text>
       </Box>
     )
   })

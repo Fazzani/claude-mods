@@ -20,3 +20,4 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await drawn.find({ key: 'sort-calls' })).toBeDefined()
   })
 }
+

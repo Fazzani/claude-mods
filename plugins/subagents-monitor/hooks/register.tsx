@@ -2,10 +2,11 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRow, AgentStatus, AgentTokens } from '../types'
+import { LOCALES, pickLocale } from './i18n'
+import type { Locale } from './i18n'
 import { costOf, shortModel } from './pricing'
 
 const PANE = 'subagents'
-const TITLE = 'Subagents'
 const PANE_COLUMNS = 54
 
 const agents = atom({ plugin: 'subagents-monitor', key: 'agents' } as const, [])
@@ -25,13 +26,6 @@ const GLYPHS: Record<AgentStatus, string> = {
   aborted: '◌',
   failed: '✗',
   killed: '✗',
-}
-const LABELS: Record<AgentStatus, string> = {
-  working: 'WORKING',
-  done: 'DONE',
-  aborted: 'ABORTED',
-  failed: 'FAILED',
-  killed: 'KILLED',
 }
 const ACCENT = '#D97757'
 const SPINNER = ['◐', '◓', '◑', '◒']
@@ -153,7 +147,7 @@ function depthOf(row: AgentRow, byId: Map<string, AgentRow>): number {
   return depth
 }
 
-function summary(list: AgentRow[], total: number | null): string | undefined {
+function summary(list: AgentRow[], total: number | null, locale: Locale): string | undefined {
   if (list.length === 0) {
     return undefined
   }
@@ -161,7 +155,7 @@ function summary(list: AgentRow[], total: number | null): string | undefined {
   const done = list.length - working
   const cost = list.reduce((sum, row) => sum + row.costUsd, 0)
 
-  return `⚙ ${working} working · ${done} done · ≈${usd(cost)}${total === null ? '' : ` / ${usd(total)}`}`
+  return `${LOCALES[locale].summary(working, done)} · ≈${usd(cost)}${total === null ? '' : ` / ${usd(total)}`}`
 }
 
 const STATUSES: Record<string, AgentStatus> = {
@@ -173,7 +167,7 @@ const STATUSES: Record<string, AgentStatus> = {
 }
 
 /** Once a second: advance live timers, reconcile with the engine's list, refresh the status line. */
-async function tick($: EngineInterface): Promise<void> {
+async function tick($: EngineInterface, locale: Locale): Promise<void> {
   const at = await $.clock.now()
   const list = (await read($, agents)) ?? []
   const isAnyWorking = list.some(row => row.status === 'working')
@@ -199,18 +193,35 @@ async function tick($: EngineInterface): Promise<void> {
   const usage = await $.session.usage()
   const total = usage.cost?.usd ?? null
   await update($, sessionUsd, () => total)
-  $.ui.status(summary((await read($, agents)) ?? [], total))
+  $.ui.status(summary((await read($, agents)) ?? [], total, locale))
 }
 
-export const register: Register = on => {
+/** The plugin's option, Claude Code's `language` setting, then the process locale. */
+async function resolveLocale($: EngineInterface, option: unknown): Promise<Locale> {
+  const settings = await $.settings.read()
+
+  return pickLocale(
+    option,
+    settings.language,
+    await $.env.get('LC_ALL'),
+    await $.env.get('LC_MESSAGES'),
+    await $.env.get('LANG'),
+  )
+}
+
+export const register: Register = (on, options) => {
+  let locale: Locale = 'en'
+  const t = () => LOCALES[locale]
+
   on('session.start', async ($, e, next) => {
+    locale = await resolveLocale($, options.language)
     await $.command.register({
       name: 'subagents',
-      description: 'Show the subagents pane (`/subagents clear` drops finished ones)',
+      description: t().commandDescription,
     })
     await update($, now, () => Date.now())
-    $.clock.every(1000, () => void tick($))
-    void $.ui.open({ id: PANE, title: TITLE, columns: PANE_COLUMNS })
+    $.clock.every(1000, () => void tick($, locale))
+    void $.ui.open({ id: PANE, title: t().title, columns: PANE_COLUMNS })
 
     return next(e)
   })
@@ -219,11 +230,11 @@ export const register: Register = on => {
     if (e.args.trim() === 'clear') {
       await update($, agents, list => (list ?? []).filter(row => row.status === 'working'))
 
-      return { text: 'Finished subagents cleared.' }
+      return { text: t().cleared }
     }
-    await $.ui.open({ id: PANE, title: TITLE, columns: PANE_COLUMNS })
+    await $.ui.open({ id: PANE, title: t().title, columns: PANE_COLUMNS })
 
-    return { text: 'Subagents pane opened.' }
+    return { text: t().opened }
   })
 
   on('agent.spawn', async ($, e, next) => {
@@ -304,7 +315,7 @@ export const register: Register = on => {
       const status: AgentStatus =
         e.reason === 'aborted' ? 'aborted' : e.reason === 'error' ? 'failed' : 'done'
       await patch($, id, (row, at) => finish(row, at, status))
-      await tick($)
+      await tick($, locale)
     }
 
     return next(e)
@@ -312,6 +323,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
+    const m = t()
     const list = (await read($, agents)) ?? []
     const at = Math.max(await read($, now), ...list.map(row => row.endedAt ?? row.startedAt))
     const total = await read($, sessionUsd)
@@ -335,7 +347,7 @@ export const register: Register = on => {
       <Box flexDirection="column" width={width}>
         <Box flexDirection="row" justifyContent="space-between">
           <Text bold color={ACCENT}>
-            ◆ Subagents
+            {m.heading}
           </Text>
           <Box flexDirection="row" gap={1}>
             <Text color={COLORS.working}>
@@ -349,8 +361,8 @@ export const register: Register = on => {
 
         {list.length === 0 && (
           <Box flexDirection="column" paddingY={1}>
-            <Text dimColor>No subagents yet.</Text>
-            <Text dimColor>They show up here the moment one starts.</Text>
+            <Text dimColor>{m.emptyTitle}</Text>
+            <Text dimColor>{m.emptyHint}</Text>
           </Box>
         )}
 
@@ -383,7 +395,7 @@ export const register: Register = on => {
                 </Box>
                 <Text color={color} bold>
                   {' '}
-                  {LABELS[row.status]}
+                  {m.status[row.status]}
                 </Text>
               </Box>
 
@@ -397,7 +409,7 @@ export const register: Register = on => {
                     <Text italic>{row.effort}</Text>
                   </>
                 )}
-                {row.isBackground && <Text dimColor>· bg</Text>}
+                {row.isBackground && <Text dimColor>· {m.background}</Text>}
               </Box>
 
               <Box flexDirection="row" justifyContent="space-between">
@@ -414,7 +426,7 @@ export const register: Register = on => {
               </Box>
 
               <Box flexDirection="row" justifyContent="space-between">
-                <Text dimColor>{tokens(row.tokens)} tok</Text>
+                <Text dimColor>{tokens(row.tokens)} {m.tokens}</Text>
                 <Text color={COLORS.done}>≈{usd(row.costUsd)}</Text>
               </Box>
             </Box>
@@ -425,10 +437,10 @@ export const register: Register = on => {
           <>
             <Text dimColor>{'─'.repeat(width)}</Text>
             <Box flexDirection="row" justifyContent="space-between">
-              <Text dimColor>Subagents ≈{usd(estimated)}</Text>
-              {total !== null && <Text dimColor>Session {usd(total)}</Text>}
+              <Text dimColor>{m.footerSubagents} ≈{usd(estimated)}</Text>
+              {total !== null && <Text dimColor>{m.footerSession} {usd(total)}</Text>}
             </Box>
-            <Text dimColor>⏱ elapsed · ⚡ working · /subagents clear</Text>
+            <Text dimColor>{m.legend}</Text>
           </>
         )}
       </Box>
