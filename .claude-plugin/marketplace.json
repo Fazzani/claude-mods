@@ -50,6 +50,20 @@
         "usage"
       ],
       "license": "MIT"
+    },
+    {
+      "name": "rtk-gain",
+      "source": "./plugins/rtk-gain",
+      "description": "RTK token savings in the status line, and /rtk-gain draws the full rtk gain report as a card.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "keywords": [
+        "rtk",
+        "tokens",
+        "savings",
+        "status line"
+      ],
+      "license": "MIT"
     }
   ]
 }
