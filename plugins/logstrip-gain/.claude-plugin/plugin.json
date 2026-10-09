@@ -1,0 +1,23 @@
+{
+  "name": "logstrip-gain",
+  "version": "0.1.0",
+  "description": "LogStrip global token savings in a status line and statistics report card.",
+  "author": {
+    "name": "Fazzani"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Fazzani/claude-mods",
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "UI labels in English or French; auto uses Claude Code language and environment locale.",
+      "default": "auto",
+      "options": [
+        "auto",
+        "en",
+        "fr"
+      ]
+    }
+  }
+}

@@ -64,6 +64,21 @@
         "status line"
       ],
       "license": "MIT"
+    },
+    {
+      "name": "logstrip-gain",
+      "source": "./plugins/logstrip-gain",
+      "description": "Read-only LogStrip savings status line and /logstrip-gain telemetry card.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "keywords": [
+        "logstrip",
+        "tokens",
+        "savings",
+        "telemetry",
+        "status line"
+      ],
+      "license": "MIT"
     }
   ]
 }

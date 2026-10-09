@@ -12,6 +12,7 @@ claude plugin install subagents-monitor@claude-mods
 claude plugin install secret-mask@claude-mods
 claude plugin install tools-usage@claude-mods
 claude plugin install rtk-gain@claude-mods
+claude plugin install logstrip-gain@claude-mods
 ```
 
 From a local clone:
@@ -28,6 +29,7 @@ claude plugin marketplace add D:\Work\GitHub\claude-mods
 | [secret-mask](plugins/secret-mask) | Masks secrets (API keys, tokens, passwords, private keys) in the transcript. Hover a masked value to reveal it. |
 | [tools-usage](plugins/tools-usage) | A side pane listing the tools used (built-in, MCP, skill, agent, plugin, hook) with call counts and token consumption. `/tools-usage` opens it and `/tools-usage reset` clears the counts. |
 | [rtk-gain](plugins/rtk-gain) | The tokens [RTK](https://www.rtk-ai.app) has saved, in the status line. `/rtk-gain` draws the full `rtk gain` report as a card with a gauge and per-command bars. |
+| [logstrip-gain](plugins/logstrip-gain) | Read-only [LogStrip](https://mrwogu.github.io/logstrip/) statistics in a status line and `/logstrip-gain` card, including cumulative token savings and recent runs. |
 
 ## Layout
 
