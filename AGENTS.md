@@ -66,10 +66,10 @@ LICENSE                             MIT
 
 | For | Reference | Key patterns |
 |-----|-----------|--------------|
-| Docked pane + state + timer + command | `plugins/subagents-monitor/hooks/register.tsx` | `atom`/`read`/`update`, `$.ui.open({ columns })`, `$.clock.every`, `$.ui.status` |
-| Pane with sort buttons | `plugins/tools-usage/hooks/register.tsx` | `Button plain`, state-driven sort, `tool.call` wrap with `try/finally` |
+| Docked pane + state + command | `plugins/tools-usage/hooks/register.tsx` | `atom`/`read`/`update`, `$.ui.open({ columns })`, `Button plain`, state-driven sort, `tool.call` wrap with `try/finally` |
+| Status line + timer | `plugins/rtk-gain/hooks/register.tsx` | `$.ui.status`, resolve-once locale |
 | Transcript rendering + hover reveal | `plugins/secret-mask/hooks/register.tsx` | `ui.render` per component, `next(e)` when there's nothing to change, keyed `Box` + `position="absolute"` + `hover={{ display: 'flex' }}` |
-| State contract | `plugins/subagents-monitor/types/index.d.ts` | `declare module 'claude-code' { interface PluginState { '<plugin>': {…} } }` |
+| State contract | `plugins/tools-usage/types/index.d.ts` | `declare module 'claude-code' { interface PluginState { '<plugin>': {…} } }` |
 | UI tests on two surfaces | `plugins/secret-mask/tests/render.test.tsx` | `for (const surface of ['terminal', 'desktop'] as const)` + `$.ui.mount` + `find({ key })` |
 | i18n | `plugins/tools-usage/locales/`, `hooks/i18n.ts`, `tests/i18n.test.ts` | typed catalogs, `pickLocale`, key-parity test |
 

@@ -9,20 +9,6 @@
   },
   "plugins": [
     {
-      "name": "subagents-monitor",
-      "source": "./plugins/subagents-monitor",
-      "description": "Live side pane listing the session's subagents: status, elapsed and working time, model, effort and estimated cost.",
-      "version": "0.2.0",
-      "category": "productivity",
-      "keywords": [
-        "subagents",
-        "monitor",
-        "pane",
-        "cost"
-      ],
-      "license": "MIT"
-    },
-    {
       "name": "secret-mask",
       "source": "./plugins/secret-mask",
       "description": "Masks secrets (API keys, tokens, passwords, private keys) in the transcript; hover a masked value to reveal it.",
